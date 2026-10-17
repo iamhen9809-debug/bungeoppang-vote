@@ -23,6 +23,15 @@ h2{font-size:19px;margin:0 0 5px}.hint{font-size:13px;color:var(--muted);margin:
 .results-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}.total{font-size:13px;color:var(--muted)}.footer{text-align:center;font-size:12px;color:#9a8677;margin-top:22px}
 .config-warning{background:#fff1d7;border:1px solid #edcc9c;padding:12px;border-radius:12px;font-size:13px;line-height:1.55;margin-top:14px}
 @media(max-width:430px){.options{grid-template-columns:1fr 1fr}.card{padding:16px}.option{padding:11px 9px}}
+
+.character-card{text-align:center;background:linear-gradient(150deg,#fff6e7,#fff,#fff0e4)}
+.fish-stage{height:260px;position:relative;display:grid;place-items:center;overflow:hidden;background:radial-gradient(ellipse,#ffe3b8 0%,#fff8ed 64%,transparent 80%);border-radius:22px}
+.floaty{width:210px;animation:fishFloat 3s ease-in-out infinite}.spinner{width:100%;animation:fishTurn 7s ease-in-out infinite;filter:drop-shadow(0 13px 8px #b5774433)}.spinner svg{width:100%;height:auto;display:block}
+.spark{position:absolute;font-size:27px;animation:twinkle 2s ease-in-out infinite}.s1{left:13%;top:19%}.s2{right:14%;top:27%;animation-delay:.5s}.s3{right:24%;bottom:15%;animation-delay:1s}
+@keyframes fishFloat{0%,100%{transform:translateY(9px)}50%{transform:translateY(-12px)}}
+@keyframes fishTurn{0%,100%{transform:rotate(-12deg) scaleX(1)}25%{transform:rotate(12deg) scaleX(.84)}50%{transform:rotate(360deg) scaleX(1)}75%{transform:rotate(347deg) scaleX(.85)}}
+@keyframes twinkle{0%,100%{opacity:.35;transform:scale(.8)}50%{opacity:1;transform:scale(1.2)}}
+@media(prefers-reduced-motion:reduce){.floaty,.spinner,.spark{animation:none}}
 </style>
 </head>
 <body>
@@ -36,6 +45,13 @@ h2{font-size:19px;margin:0 0 5px}.hint{font-size:13px;color:var(--muted);margin:
 <button class="option" data-value="팥"><span class="emoji">❤️</span>팥</button><button class="option" data-value="슈크림"><span class="emoji">💛</span>슈크림</button><button class="option" data-value="둘 다"><span class="emoji">🥰</span>둘 다 좋아요</button><button class="option" data-value="다른 맛"><span class="emoji">✨</span>다른 맛</button>
 </div></section>
 <section class="card"><h2>🗳️ 투표하기</h2><p class="hint">이름이나 연락처는 받지 않아요. 같은 브라우저의 익명 계정은 한 번만 투표할 수 있어요.</p><button class="primary" id="voteBtn" disabled>내 취향 투표하기</button><div class="status" id="status" role="status">Firebase 연결을 확인하고 있어요…</div><p class="note">중요: 브라우저 익명 계정은 쿠키/사이트 데이터를 지우거나 다른 기기를 사용하면 새 계정으로 다시 투표할 수 있어요. 엄격한 실명 기준의 ‘한 사람당 1회’를 보장하려면 회원 로그인/인증이 필요합니다.</p></section>
+
+<section class="card character-card" id="characterCard" hidden>
+  <h2>🎉 투표 완료! 나만의 붕어빵</h2>
+  <p class="hint" id="characterText">당신만의 특별한 붕어빵이에요!</p>
+  <div class="fish-stage"><div class="floaty" id="fishFloat"><div class="spinner" id="fishArt"></div></div><span class="spark s1">✨</span><span class="spark s2">💛</span><span class="spark s3">✨</span></div>
+  <p class="note" style="text-align:center">같은 브라우저의 익명 계정으로 다시 접속하면 이 캐릭터를 다시 볼 수 있어요.</p>
+</section>
 <section class="card"><div class="results-head"><div><h2>📊 실시간 투표 결과</h2><p class="hint" style="margin:5px 0 0">모든 회원의 결과가 자동으로 반영돼요.</p></div><span class="total" id="total">총 0표</span></div><div id="results"></div><p class="note">집계 결과만 공개되며, 닉네임 등 개인정보는 저장하지 않아요.</p></section>
 <div class="footer">따뜻한 붕어빵처럼 즐거운 모임 되세요 🧡</div>
 </main>
@@ -45,6 +61,10 @@ import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gsta
 import { getFirestore, collection, doc, getDoc, setDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 
+const toBite={"머리부터":"head","꼬리부터":"tail","몸통부터":"body","반으로 나눠서":"half","그때그때 달라요":"varies"};
+const toFilling={"팥":"redbean","슈크림":"custard","둘 다":"both","다른 맛":"other"};
+const fromBite=Object.fromEntries(Object.entries(toBite).map(([k,v])=>[v,k]));
+const fromFilling=Object.fromEntries(Object.entries(toFilling).map(([k,v])=>[v,k]));
 const configured = firebaseConfig && firebaseConfig.apiKey && !String(firebaseConfig.apiKey).includes("YOUR_");
 const warning = document.getElementById("configWarning");
 const statusEl = document.getElementById("status");
@@ -52,15 +72,35 @@ const voteBtn = document.getElementById("voteBtn");
 const resultsEl = document.getElementById("results");
 const totalEl = document.getElementById("total");
 const categories = {
- part:["머리부터","꼬리부터","몸통부터","반으로 나눠서","그때그때 달라요"],
- flavor:["팥","슈크림","둘 다","다른 맛"]
+ bite:["머리부터","꼬리부터","몸통부터","반으로 나눠서","그때그때 달라요"],
+ filling:["팥","슈크림","둘 다","다른 맛"]
 };
-let picks={part:"",flavor:""}, db, uid, existingVote=false, ready=false;
+let picks={bite:"",filling:""}, db, uid, existingVote=false, ready=false;
+
+function showCharacter(userId,flavor){
+ let hash=2166136261;for(const ch of userId){hash^=ch.charCodeAt(0);hash=Math.imul(hash,16777619)}hash>>>=0;
+ const accessories=['👑','🎀','🕶️','🎧','🌸','🧢','⭐','🎩','🍀','💐','🧣','💎'];
+ const faces=[0,1,2,3];const accessory=accessories[hash%accessories.length];const face=faces[(hash>>>5)%faces.length];
+ const skin=['#eeb66e','#f5c57c','#e9a960','#f7cb8a'][(hash>>>8)%4];
+ const fillingColor=flavor==='팥'?'#71402f':flavor==='슈크림'?'#ffe58e':flavor==='둘 다'?'#b97b50':'#b8d89e';
+ const mouth=face===0?'<path d="M116 124 Q127 142 138 124" fill="none" stroke="#70412f" stroke-width="4" stroke-linecap="round"/>':face===1?'<path d="M116 125 Q127 137 138 125" fill="#a9524c" stroke="#70412f" stroke-width="3"/>':face===2?'<path d="M119 129 Q127 120 135 129" fill="none" stroke="#70412f" stroke-width="4" stroke-linecap="round"/>':'<circle cx="127" cy="130" r="6" fill="#a9524c"/>';
+ const eye=face===2?'<path d="M100 113 q7 -7 14 0 M140 113 q7 -7 14 0" fill="none" stroke="#513021" stroke-width="4" stroke-linecap="round"/>':'<ellipse cx="108" cy="113" rx="4.5" ry="6" fill="#513021"/><ellipse cx="147" cy="113" rx="4.5" ry="6" fill="#513021"/>';
+ document.getElementById('fishArt').innerHTML=`<svg viewBox="0 0 260 230" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${flavor} 붕어빵 캐릭터 ${accessory}">
+ <path d="M178 101 L235 54 Q246 51 238 82 L223 113 L244 143 Q246 159 231 153 L180 136" fill="${skin}" stroke="#ae692e" stroke-width="6" stroke-linejoin="round"/>
+ <path d="M87 49 Q133 18 180 58 Q205 79 200 120 Q202 170 162 183 Q114 202 73 172 Q35 146 39 110 Q41 74 87 49Z" fill="${skin}" stroke="#ae692e" stroke-width="7"/>
+ <path d="M67 89 Q92 40 152 52 M56 113 Q73 69 126 61 M66 146 Q82 168 127 178 M164 67 Q191 99 177 145" stroke="#ffd99b" stroke-width="7" fill="none" stroke-linecap="round" opacity=".85"/>
+ <path d="M68 90 Q52 114 73 143" fill="none" stroke="${fillingColor}" stroke-width="15" stroke-linecap="round"/>
+ <ellipse cx="90" cy="131" rx="13" ry="8" fill="#ed8586" opacity=".6"/><ellipse cx="165" cy="131" rx="13" ry="8" fill="#ed8586" opacity=".6"/>${eye}${mouth}
+ <text x="130" y="47" text-anchor="middle" font-size="43">${accessory}</text></svg>`;
+ document.getElementById('characterText').textContent=`${flavor} 붕어빵을 좋아하는 당신! ${accessory} 장식의 특별한 붕어빵이에요.`;
+ document.getElementById('characterCard').hidden=false;
+}
+
 function setStatus(msg){statusEl.textContent=msg}
 function drawResults(votes){
  totalEl.textContent=`총 ${votes.length}표`;
  resultsEl.replaceChildren();
- [["part","먹는 부위",categories.part],["flavor","선호 맛",categories.flavor]].forEach(([key,title,items])=>{
+ [["bite","먹는 부위",categories.bite],["filling","선호 맛",categories.filling]].forEach(([key,title,items])=>{
   const h=document.createElement("h3");h.textContent=title;h.style.cssText="font-size:15px;margin:20px 0 8px";resultsEl.appendChild(h);
   items.forEach(item=>{
    const n=votes.filter(v=>v[key]===item).length,pct=votes.length?Math.round(n/votes.length*100):0;
@@ -75,7 +115,7 @@ function drawResults(votes){
   });
  });
 }
-function updateVoteButton(){voteBtn.disabled=!(ready && picks.part && picks.flavor && !existingVote)}
+function updateVoteButton(){voteBtn.disabled=!(ready && picks.bite && picks.filling && !existingVote)}
 function bindOptions(id,key){
  document.querySelectorAll(`#${id} .option`).forEach(btn=>btn.addEventListener("click",()=>{
   if(existingVote)return;
@@ -84,7 +124,7 @@ function bindOptions(id,key){
   updateVoteButton();
  }));
 }
-bindOptions("partOptions","part");bindOptions("flavorOptions","flavor");
+bindOptions("partOptions","bite");bindOptions("flavorOptions","filling");
 
 if(!configured){
  warning.hidden=false;setStatus("Firebase 설정 전이에요. README의 설정 단계를 따라주세요.");drawResults([]);updateVoteButton();
@@ -98,21 +138,21 @@ if(!configured){
     const mine=await getDoc(doc(db,"votes",uid));
     existingVote=mine.exists();
     ready=true;
-    if(existingVote){picks={part:mine.data().part,flavor:mine.data().flavor};document.querySelectorAll(".option").forEach(b=>{const parent=b.closest("#partOptions")?"part":"flavor";b.classList.toggle("selected",b.dataset.value===picks[parent]);});setStatus("이미 투표했어요. 결과는 실시간으로 확인할 수 있어요.");}
+    if(existingVote){picks={bite:fromBite[mine.data().bite]||"",filling:fromFilling[mine.data().filling]||""};document.querySelectorAll(".option").forEach(b=>{const parent=b.closest("#partOptions")?"bite":"filling";b.classList.toggle("selected",b.dataset.value===picks[parent]);});setStatus("이미 투표했어요. 나만의 붕어빵을 다시 만나보세요!");showCharacter(uid,picks.filling);}
     else setStatus("투표할 준비가 됐어요!");
     updateVoteButton();
    }catch(e){setStatus("투표 상태를 확인하지 못했어요. Firestore 보안 규칙과 설정을 확인해 주세요.");console.error(e)}
   });
   onSnapshot(collection(db,"votes"),snap=>{
-   const votes=snap.docs.map(d=>({part:d.data().part,flavor:d.data().flavor}));drawResults(votes);
+   const votes=snap.docs.map(d=>({bite:fromBite[d.data().bite],filling:fromFilling[d.data().filling]}));drawResults(votes);
   },err=>{setStatus("결과를 불러오지 못했어요. Firebase 설정/보안 규칙을 확인해 주세요.");console.error(err)});
   voteBtn.addEventListener("click",async()=>{
-   if(!ready||existingVote||!picks.part||!picks.flavor)return;
+   if(!ready||existingVote||!picks.bite||!picks.filling)return;
    voteBtn.disabled=true;setStatus("투표를 저장하고 있어요…");
    try{
-    await setDoc(doc(db,"votes",uid),{part:picks.part,flavor:picks.flavor,createdAt:serverTimestamp()});
+    await setDoc(doc(db,"votes",uid),{bite:toBite[picks.bite],filling:toFilling[picks.filling]});
     existingVote=true;document.querySelectorAll(".option").forEach(b=>b.disabled=true);
-    setStatus("투표 완료! 참여해줘서 고마워요 🧡");updateVoteButton();
+    setStatus("투표 완료! 나만의 붕어빵이 나타났어요 🧡");showCharacter(uid,picks.filling);updateVoteButton();
    }catch(e){
     if(e.code==="permission-denied")setStatus("이미 투표했거나 권한 설정을 확인해야 해요.");
     else setStatus("저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.");
