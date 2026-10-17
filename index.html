@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#fff4e6">
+<title>붕어빵 취향 투표 🐟</title>
+<style>
+:root{--ink:#3b2a22;--muted:#806d60;--line:#f0dfce}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#fff4e6,#fffaf5 42%,#fff);color:var(--ink);font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif}
+main{max-width:760px;margin:auto;padding:22px 16px 48px}.hero{text-align:center;padding:26px 14px 20px;background:#ffe9d4;border-radius:26px}
+.fish{font-size:54px;filter:drop-shadow(0 5px 0 #efc59f)}h1{font-size:clamp(26px,6vw,38px);margin:6px 0 8px;letter-spacing:-1.2px}.sub{color:#795e4c;margin:0;line-height:1.6}
+.pill{display:inline-block;background:#fff;border:1px solid #f1d1b4;border-radius:99px;padding:6px 12px;font-size:12px;margin-top:14px}
+.card{background:#fff;border:1px solid var(--line);border-radius:22px;padding:20px;margin-top:16px;box-shadow:0 8px 24px #80532a0b}
+h2{font-size:19px;margin:0 0 5px}.hint{font-size:13px;color:var(--muted);margin:0 0 14px}
+.options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.option{border:1.5px solid var(--line);border-radius:16px;background:#fffdfb;padding:13px 12px;text-align:left;color:var(--ink);font:inherit;cursor:pointer;min-height:58px}
+.option.selected{border-color:#df8742;background:#fff0df;box-shadow:0 0 0 2px #f7d8b9 inset}.emoji{font-size:23px;display:block;margin-bottom:4px}
+.primary{width:100%;border:0;border-radius:14px;padding:14px 18px;background:#d97735;color:#fff;font:inherit;font-weight:750;cursor:pointer}.primary:disabled{opacity:.45;cursor:not-allowed}
+.secondary{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:white;color:var(--ink);font:inherit;cursor:pointer}
+.note{font-size:12px;color:var(--muted);line-height:1.6}.status{min-height:22px;font-size:13px;color:#7b512e;margin-top:10px}
+.result-row{margin:14px 0}.result-top{display:flex;justify-content:space-between;gap:10px;font-size:14px;margin-bottom:6px}.track{height:12px;background:#f7eee5;border-radius:99px;overflow:hidden}.bar{height:100%;background:linear-gradient(90deg,#f6bd83,#df7c37);border-radius:99px;transition:width .35s}.count{font-size:12px;color:var(--muted)}
+.results-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}.total{font-size:13px;color:var(--muted)}.footer{text-align:center;font-size:12px;color:#9a8677;margin-top:22px}
+.config-warning{background:#fff1d7;border:1px solid #edcc9c;padding:12px;border-radius:12px;font-size:13px;line-height:1.55;margin-top:14px}
+@media(max-width:430px){.options{grid-template-columns:1fr 1fr}.card{padding:16px}.option{padding:11px 9px}}
+</style>
+</head>
+<body>
+<main>
+<header class="hero"><div class="fish">🐟</div><h1>붕어빵 취향 투표</h1><p class="sub">머리부터 먹을까, 꼬리부터 먹을까?<br>팥이 좋아? 슈크림이 좋아?</p><span class="pill">거제 2030 청년모임 · 취향 조사</span></header>
+<div id="configWarning" class="config-warning" hidden>아직 Firebase 설정이 완료되지 않았어요. README 안내에 따라 Firebase 프로젝트를 만든 뒤 <b>firebase-config.js</b>의 설정값을 입력해 주세요.</div>
+<section class="card"><h2>🐠 1. 붕어빵 어디부터 먹나요?</h2><p class="hint">가장 좋아하는 먹는 방법 하나를 골라주세요.</p><div class="options" id="partOptions">
+<button class="option" data-value="머리부터"><span class="emoji">🐟</span>머리부터</button><button class="option" data-value="꼬리부터"><span class="emoji">🐠</span>꼬리부터</button><button class="option" data-value="몸통부터"><span class="emoji">🍞</span>몸통부터</button><button class="option" data-value="반으로 나눠서"><span class="emoji">✂️</span>반으로 나눠서</button><button class="option" data-value="그때그때 달라요"><span class="emoji">🤭</span>그때그때 달라요</button>
+</div></section>
+<section class="card"><h2>🍮 2. 어떤 붕어빵을 좋아하나요?</h2><p class="hint">가장 좋아하는 맛 하나를 골라주세요.</p><div class="options" id="flavorOptions">
+<button class="option" data-value="팥"><span class="emoji">❤️</span>팥</button><button class="option" data-value="슈크림"><span class="emoji">💛</span>슈크림</button><button class="option" data-value="둘 다"><span class="emoji">🥰</span>둘 다 좋아요</button><button class="option" data-value="다른 맛"><span class="emoji">✨</span>다른 맛</button>
+</div></section>
+<section class="card"><h2>🗳️ 투표하기</h2><p class="hint">이름이나 연락처는 받지 않아요. 같은 브라우저의 익명 계정은 한 번만 투표할 수 있어요.</p><button class="primary" id="voteBtn" disabled>내 취향 투표하기</button><div class="status" id="status" role="status">Firebase 연결을 확인하고 있어요…</div><p class="note">중요: 브라우저 익명 계정은 쿠키/사이트 데이터를 지우거나 다른 기기를 사용하면 새 계정으로 다시 투표할 수 있어요. 엄격한 실명 기준의 ‘한 사람당 1회’를 보장하려면 회원 로그인/인증이 필요합니다.</p></section>
+<section class="card"><div class="results-head"><div><h2>📊 실시간 투표 결과</h2><p class="hint" style="margin:5px 0 0">모든 회원의 결과가 자동으로 반영돼요.</p></div><span class="total" id="total">총 0표</span></div><div id="results"></div><p class="note">집계 결과만 공개되며, 닉네임 등 개인정보는 저장하지 않아요.</p></section>
+<div class="footer">따뜻한 붕어빵처럼 즐거운 모임 되세요 🧡</div>
+</main>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import { getFirestore, collection, doc, getDoc, setDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import { firebaseConfig } from "./firebase-config.js";
+
+const configured = firebaseConfig && firebaseConfig.apiKey && !String(firebaseConfig.apiKey).includes("YOUR_");
+const warning = document.getElementById("configWarning");
+const statusEl = document.getElementById("status");
+const voteBtn = document.getElementById("voteBtn");
+const resultsEl = document.getElementById("results");
+const totalEl = document.getElementById("total");
+const categories = {
+ part:["머리부터","꼬리부터","몸통부터","반으로 나눠서","그때그때 달라요"],
+ flavor:["팥","슈크림","둘 다","다른 맛"]
+};
+let picks={part:"",flavor:""}, db, uid, existingVote=false, ready=false;
+function setStatus(msg){statusEl.textContent=msg}
+function drawResults(votes){
+ totalEl.textContent=`총 ${votes.length}표`;
+ resultsEl.replaceChildren();
+ [["part","먹는 부위",categories.part],["flavor","선호 맛",categories.flavor]].forEach(([key,title,items])=>{
+  const h=document.createElement("h3");h.textContent=title;h.style.cssText="font-size:15px;margin:20px 0 8px";resultsEl.appendChild(h);
+  items.forEach(item=>{
+   const n=votes.filter(v=>v[key]===item).length,pct=votes.length?Math.round(n/votes.length*100):0;
+   const row=document.createElement("div");row.className="result-row";
+   const top=document.createElement("div");top.className="result-top";
+   const label=document.createElement("span");label.textContent=item;
+   const count=document.createElement("span");count.className="count";count.textContent=`${n}표 · ${pct}%`;
+   top.append(label,count);
+   const track=document.createElement("div");track.className="track";
+   const bar=document.createElement("div");bar.className="bar";bar.style.width=pct+"%";track.appendChild(bar);
+   row.append(top,track);resultsEl.appendChild(row);
+  });
+ });
+}
+function updateVoteButton(){voteBtn.disabled=!(ready && picks.part && picks.flavor && !existingVote)}
+function bindOptions(id,key){
+ document.querySelectorAll(`#${id} .option`).forEach(btn=>btn.addEventListener("click",()=>{
+  if(existingVote)return;
+  picks[key]=btn.dataset.value;
+  document.querySelectorAll(`#${id} .option`).forEach(b=>b.classList.toggle("selected",b===btn));
+  updateVoteButton();
+ }));
+}
+bindOptions("partOptions","part");bindOptions("flavorOptions","flavor");
+
+if(!configured){
+ warning.hidden=false;setStatus("Firebase 설정 전이에요. README의 설정 단계를 따라주세요.");drawResults([]);updateVoteButton();
+}else{
+ try{
+  const app=initializeApp(firebaseConfig);const auth=getAuth(app);db=getFirestore(app);
+  await signInAnonymously(auth);
+  onAuthStateChanged(auth,async user=>{
+   if(!user)return;uid=user.uid;
+   try{
+    const mine=await getDoc(doc(db,"votes",uid));
+    existingVote=mine.exists();
+    ready=true;
+    if(existingVote){picks={part:mine.data().part,flavor:mine.data().flavor};document.querySelectorAll(".option").forEach(b=>{const parent=b.closest("#partOptions")?"part":"flavor";b.classList.toggle("selected",b.dataset.value===picks[parent]);});setStatus("이미 투표했어요. 결과는 실시간으로 확인할 수 있어요.");}
+    else setStatus("투표할 준비가 됐어요!");
+    updateVoteButton();
+   }catch(e){setStatus("투표 상태를 확인하지 못했어요. Firestore 보안 규칙과 설정을 확인해 주세요.");console.error(e)}
+  });
+  onSnapshot(collection(db,"votes"),snap=>{
+   const votes=snap.docs.map(d=>({part:d.data().part,flavor:d.data().flavor}));drawResults(votes);
+  },err=>{setStatus("결과를 불러오지 못했어요. Firebase 설정/보안 규칙을 확인해 주세요.");console.error(err)});
+  voteBtn.addEventListener("click",async()=>{
+   if(!ready||existingVote||!picks.part||!picks.flavor)return;
+   voteBtn.disabled=true;setStatus("투표를 저장하고 있어요…");
+   try{
+    await setDoc(doc(db,"votes",uid),{part:picks.part,flavor:picks.flavor,createdAt:serverTimestamp()});
+    existingVote=true;document.querySelectorAll(".option").forEach(b=>b.disabled=true);
+    setStatus("투표 완료! 참여해줘서 고마워요 🧡");updateVoteButton();
+   }catch(e){
+    if(e.code==="permission-denied")setStatus("이미 투표했거나 권한 설정을 확인해야 해요.");
+    else setStatus("저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.");
+    updateVoteButton();console.error(e);
+   }
+  });
+ }catch(e){warning.hidden=false;setStatus("Firebase 연결에 실패했어요. 설정과 익명 로그인을 확인해 주세요.");console.error(e)}
+}
+</script>
+</body></html>
